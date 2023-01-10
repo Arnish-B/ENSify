@@ -23,7 +23,7 @@ How it works :mag_right:
 Getting Started :rocket:
 ------------------------
 
-1.  Visit [ensify.dom](https://ensify.dom.netlify.app/)
+1.  Visit [ensify](https://ensify.netlify.app/)
 2.  Make sure you have a Metamask wallet set up and connected to the Polygon Network before using this platform.
 3.  Enter the desired domain name and attach a text or a link to it.
 4.  Make the payment through MetaMask
