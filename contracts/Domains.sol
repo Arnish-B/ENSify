@@ -11,6 +11,8 @@ import "@openzeppelin/contracts/utils/Base64.sol";
 import "hardhat/console.sol";
 
 contract Domains is ERC721URIStorage {
+    mapping(uint256 => string) public names;
+    address payable public owner;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -27,12 +29,30 @@ contract Domains is ERC721URIStorage {
         payable
         ERC721("Dom Name Service", "DNS(ENS)")
     {
+        owner = payable(msg.sender);
         tld = _tld;
         console.log("%s name service deployed", _tld);
     }
 
+    function getAllNames() public view returns (string[] memory) {
+        console.log("Getting all names from contract");
+        string[] memory allNames = new string[](_tokenIds.current());
+        for (uint256 i = 0; i < _tokenIds.current(); i++) {
+            allNames[i] = names[i];
+            console.log("Name for token %d is %s", i, allNames[i]);
+        }
+
+        return allNames;
+    }
+
+    error Unauthorized();
+    error AlreadyRegistered();
+    error InvalidName(string name);
+
     function register(string calldata name) public payable {
         require(domains[name] == address(0));
+        if (domains[name] != address(0)) revert AlreadyRegistered();
+        if (!valid(name)) revert InvalidName(name);
 
         uint256 _price = price(name);
         require(msg.value >= _price, "Not enough Matic paid");
@@ -81,6 +101,7 @@ contract Domains is ERC721URIStorage {
         _setTokenURI(newRecordId, finalTokenUri);
         domains[name] = msg.sender;
 
+        names[newRecordId] = name;
         _tokenIds.increment();
     }
 
@@ -88,12 +109,16 @@ contract Domains is ERC721URIStorage {
         uint256 len = StringUtils.strlen(name);
         require(len > 0);
         if (len == 3) {
-            return 5 * 10**17; // 5 MATIC = 5 000 000 000 000 000 000 (18 decimals).
+            return 5 * 10**17;
         } else if (len == 4) {
-            return 3 * 10**17; // To charge smaller amounts, reduce the decimals. This is 0.3
+            return 3 * 10**17;
         } else {
             return 1 * 10**17;
         }
+    }
+
+    function valid(string calldata name) public pure returns (bool) {
+        return StringUtils.strlen(name) >= 3 && StringUtils.strlen(name) <= 10;
     }
 
     function getAddress(string calldata name) public view returns (address) {
@@ -111,5 +136,21 @@ contract Domains is ERC721URIStorage {
         returns (string memory)
     {
         return records[name];
+    }
+
+    modifier onlyOwner() {
+        require(isOwner());
+        _;
+    }
+
+    function isOwner() public view returns (bool) {
+        return msg.sender == owner;
+    }
+
+    function withdraw() public onlyOwner {
+        uint256 amount = address(this).balance;
+
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Failed to withdraw Matic");
     }
 }
